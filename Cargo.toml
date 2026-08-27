@@ -1,0 +1,29 @@
+[package]
+name = "rolldown-plugin-external-globals"
+version = "0.1.0"
+edition = "2021"
+description = "Transform external imports into global variables for Rolldown, written in Rust on top of oxc (rolldown's own parser)"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "3.12", features = ["napi9"] }
+napi-derive = "3.6"
+# Keep oxc crates pinned to the exact same version rolldown uses internally.
+oxc_allocator = "0.147.0"
+oxc_ast = "0.147.0"
+oxc_ast_visit = "0.147.0"
+oxc_parser = "0.147.0"
+oxc_semantic = "0.147.0"
+oxc_span = "0.147.0"
+# rolldown's own MagicString port (used for edits + sourcemap generation)
+string_wizard = "1.2.6"
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+lto = true
+codegen-units = 1

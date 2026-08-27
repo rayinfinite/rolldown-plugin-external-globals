@@ -1,0 +1,6 @@
+/target
+/node_modules
+/index.js
+/index.d.ts
+*.node
+.DS_Store

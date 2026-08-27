@@ -1,0 +1,146 @@
+name: CI
+
+on:
+  push:
+    branches: [main, test]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # npm OIDC trusted publishing + provenance
+
+env:
+  APP_NAME: rolldown-plugin-external-globals
+  MACOSX_DEPLOYMENT_TARGET: '10.13'
+
+jobs:
+  test:
+    name: Test (Rust + JS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install deps
+        run: npm ci
+      - name: Build native module
+        run: npm run build
+      - name: Rust unit tests
+        run: cargo test
+      - name: JS tests (parity + e2e)
+        if: ${{ hashFiles('test/*.test.mjs') != '' }}
+        run: npm test
+
+  build:
+    # macos-13 (Intel) and windows-11-arm64 runners have very scarce capacity
+    # on public repos; x86_64-apple-darwin is cross-compiled on arm64 macOS
+    # instead, and windows-arm64 is deferred to a later release.
+    name: Build - ${{ matrix.settings.host }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - host: macos-latest
+            targets: 'aarch64-apple-darwin x86_64-apple-darwin'
+          - host: ubuntu-latest
+            targets: 'x86_64-unknown-linux-gnu'
+          - host: ubuntu-24.04-arm
+            targets: 'aarch64-unknown-linux-gnu'
+          - host: windows-latest
+            targets: 'x86_64-pc-windows-msvc'
+    runs-on: ${{ matrix.settings.host }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install deps
+        run: npm ci
+      - name: Build native module(s)
+        shell: bash
+        run: |
+          for target in ${{ matrix.settings.targets }}; do
+            rustup target add "$target" || true
+            npx napi build --platform --release --esm --target "$target"
+          done
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: bindings-${{ matrix.settings.host }}
+          path: '*.node'
+          if-no-files-found: error
+
+  publish:
+    name: Publish to npm (OIDC trusted publishing)
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install deps
+        run: npm ci
+      # Generates index.js / index.d.ts (platform-agnostic) plus the host binding.
+      - name: Build (host)
+        run: npm run build
+      - name: Download all platform bindings
+        uses: actions/download-artifact@v8
+        with:
+          pattern: bindings-*
+          merge-multiple: true
+      - name: List package contents
+        run: npm pack --dry-run
+      # No NPM_TOKEN needed: npm exchanges the workflow's OIDC identity for a
+      # short-lived publish credential (configured under the package's
+      # "Trusted publishing" settings on npmjs.com). Provenance is automatic.
+      - name: Publish
+        run: npm publish
+
+  pack:
+    # Manual job: assemble the complete publishable tarball (all platform
+    # binaries included) for a one-off local publish — used for the very first
+    # publish before the package exists on npm (trusted publishing cannot be
+    # configured for a package that does not exist yet).
+    name: Pack release tarball
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install deps
+        run: npm ci
+      - name: Build (host)
+        run: npm run build
+      - name: Download all platform bindings
+        uses: actions/download-artifact@v8
+        with:
+          pattern: bindings-*
+          merge-multiple: true
+      - name: Create tarball
+        run: npm pack
+      - name: Upload tarball
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-tarball
+          path: '*.tgz'
+          if-no-files-found: error
