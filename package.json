@@ -56,7 +56,9 @@
     "build": "napi build --platform --release --esm",
     "build:debug": "napi build --platform --esm",
     "test": "node --test test/parity.test.mjs test/e2e.test.mjs test/rollup.test.mjs",
-    "bench": "node test/bench.mjs"
+    "bench": "node test/bench.mjs",
+    "bench:antd": "node test/bench-antd.mjs",
+    "bench:mui": "node test/bench-mui.mjs"
   },
   "peerDependencies": {
     "rolldown": ">=1.0.0",
@@ -72,6 +74,7 @@
   },
   "devDependencies": {
     "@napi-rs/cli": "3.8.6",
+    "esbuild": "^0.28.2",
     "rolldown": "1.2.6",
     "rollup": "4.63.0",
     "rollup-plugin-external-globals": "0.13.0"

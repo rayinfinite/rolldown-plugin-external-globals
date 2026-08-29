@@ -135,6 +135,30 @@ cargo test            # Rust unit tests
 
 Test strategy: `test/parity.test.mjs` runs the original plugin and the native implementation on **identical inputs** and compares byte-for-byte; `test/e2e.test.mjs` / `test/rollup.test.mjs` run real `rolldown` / `rollup` builds.
 
+
+### Test results (latest run, all passing)
+
+| Suite | Tests | Result |
+| --- | --- | --- |
+| Parity vs original plugin | 31 | 31 passed |
+| Rolldown end-to-end | 6 | 6 passed |
+| Rollup end-to-end | 3 | 3 passed |
+| **Total (JS)** | **40** | **40 passed, 0 failed** |
+| Rust unit tests (`cargo test`) | — | passed |
+
+
+### Performance comparison (byte-identical output)
+
+| Corpus | Scale | Original plugin | Native plugin | Speedup |
+| --- | --- | --- | --- | --- |
+| `transform` only | 200 modules | 64.7ms | 14.1ms | **4.6x** |
+| rollup full build | 200 modules | 216.1ms | 176.7ms | 1.22x |
+| rolldown full build | 200 modules | 116.5ms | 34.9ms | **3.33x** |
+| ant-design v6 (rolldown build) | 1461 modules | 302ms | 143ms | **2.11x** |
+| MUI v9 (rolldown build) | 11648 modules | 996ms | 643ms | 1.55x whole build, **2.4x** plugin overhead |
+
+Reproduce with `npm run bench`, `npm run bench:antd`, `npm run bench:mui`; see the "Why a rewrite" and "Real-world comparisons" sections above for methodology and notes.
+
 ## License
 
 MIT (same as the original plugin).

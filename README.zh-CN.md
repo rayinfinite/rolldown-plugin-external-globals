@@ -133,6 +133,30 @@ cargo test            # Rust 单元测试
 
 测试策略：`test/parity.test.mjs` 把原插件与原生实现跑在**相同输入**上逐字节比对；`test/e2e.test.mjs` / `test/rollup.test.mjs` 分别走真实 `rolldown` / `rollup` 构建。
 
+
+### 测试结果（最近一次运行，全部通过）
+
+| 套件 | 用例数 | 结果 |
+| --- | --- | --- |
+| 与原插件逐字节对齐 | 31 | 31 通过 |
+| rolldown 端到端 | 6 | 6 通过 |
+| rollup 端到端 | 3 | 3 通过 |
+| **合计（JS）** | **40** | **40 通过，0 失败** |
+| Rust 单测（`cargo test`） | — | 通过 |
+
+
+### 性能对比（产物逐字节一致）
+
+| 语料 | 规模 | 原插件 | 原生插件 | 提速 |
+| --- | --- | --- | --- | --- |
+| 纯 `transform` | 200 模块 | 64.7ms | 14.1ms | **4.6x** |
+| rollup 整包构建 | 200 模块 | 216.1ms | 176.7ms | 1.22x |
+| rolldown 整包构建 | 200 模块 | 116.5ms | 34.9ms | **3.33x** |
+| ant-design v6（rolldown 构建） | 1461 模块 | 302ms | 143ms | **2.11x** |
+| MUI v9（rolldown 构建） | 11648 模块 | 996ms | 643ms | 整包 1.55x，**插件开销口径 2.4x** |
+
+复现：`npm run bench`、`npm run bench:antd`、`npm run bench:mui`；方法与说明见上文「为什么要重写」与「真实项目对比」两节。
+
 ## 许可证
 
 MIT（与原插件一致）。
